@@ -20,10 +20,10 @@ def render_home_page():
     # ===== Container 2: Mural =====
     with col2:
         with st.container(border=True):
-            st.subheader("🖼️ Mural de Imagens")
-            st.write("Veja exemplos de imagens originais e adulteradas para comparação.")
+            st.subheader("🎥 Verificar Vídeo")
+            st.write("Envie um video para análise e verificação de alterações.")
             if st.button("Mural", key="btn_mural"):
-                st.switch_page("pages/gallery.py")
+                st.switch_page("pages/comp_video.py")
 
 
 
