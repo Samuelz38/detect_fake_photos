@@ -1,5 +1,4 @@
 import streamlit as st
-from datetime import datetime
 from ..utils.util import covert_to_rgb, process_image
 
 def render_result_page():
@@ -23,7 +22,6 @@ def render_result_page():
         with st.spinner(f"Processando imagem: {option}..."):
             processed_img = process_image(img, option, K)
 
-        # Detecta se é grayscale para exibir corretamente
         if len(processed_img.shape) == 2:
             st.image(processed_img, use_container_width=True, channels="GRAY")
         else:

@@ -1,7 +1,45 @@
 import cv2
 import numpy as np
 import tempfile
+import matplotlib.pyplot as plt
+import time
 
+
+def draw_flow(img,flow,step=16):
+
+    h, w = img.shape[:2]
+    y, x = np.mgrid[step/2:h:step, step/2:w:step].reshape(2,-1).astype(int)
+    fx, fy = flow[y,x].T
+
+    lines = np.vstack([x,y,x-fx,y-fy]).T.reshape(-1,2,2)
+    lines = np.int32(lines + 0.5)
+
+    img_bar = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    cv2.polylines(img_bar,lines,0,(0,255,0))
+
+    for (x1,y1), (_x2, _y2) in lines:
+        cv2.circle(img_bar, (x1,y1), 1, (0,255,0), -1)
+    
+    return img_bar
+
+def draw_hsv(flow):
+    h, w = flow.shape[:2]
+    fx, fy = flow[..., 0], flow[..., 1]
+
+    # Ângulo em radianos -> [0, 2π]
+    ang = np.arctan2(fy, fx) + np.pi
+
+    # Magnitude
+    v = np.sqrt(fx * fx + fy * fy)
+
+    # Criar imagem HSV
+    hsv = np.zeros((h, w, 3), np.uint8)
+    hsv[..., 0] = ang * 180 / np.pi / 2   # Hue (direção)
+    hsv[..., 1] = 255                     # Saturação
+    hsv[..., 2] = np.minimum(v * 4, 255)    # Magnitude -> Value
+
+    bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    return bgr
 
 def covert_to_rgb(img):
     file_bytes = np.asarray(bytearray(img.read()), dtype=np.uint8)
@@ -61,11 +99,11 @@ def process_image(img,option, K=10, limite_desvio=2.0):
 
 
 
-def process_video(data,option):
+def process_video(data,option,codec='mp4v'):
     
     tfile = tempfile.NamedTemporaryFile(delete=False,suffix='.mp4')
     tfile.write(data.read())
-
+    tpm_path = tfile.name
     tfile.close()
     
     video = cv2.VideoCapture(tfile.name)
@@ -139,4 +177,47 @@ def process_video(data,option):
                 
                 return inconsistency
     
-cv2.Sobel
+
+        case 'Optical Analise':
+            fps = video.get(cv2.CAP_PROP_FPS) or 25.0
+            w = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+            
+            fourcc = cv2.VideoWriter_fourcc(*codec)
+            out = cv2.VideoWriter(data, fourcc, fps, (w, h))
+
+            
+            if not suc:
+                video.release()
+                out.release()
+                raise RuntimeError("Vídeo vazio")
+
+            prevgray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            while True:
+                suc, img = video.read()
+                if not suc:
+                    break
+
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+                # calcula fluxo Farneback (ajuste parâmetros se precisar)
+                flow = cv2.calcOpticalFlowFarneback(prevgray, gray, None,
+                                                    0.5, 3, 15, 3, 5, 1.2, 0)
+                prevgray = gray
+
+                # desenha resultado (por exemplo: draw_flow ou draw_hsv)
+                # aqui suponho que draw_flow/ draw_hsv retornam BGR com mesmo tamanho (w,h)
+                vis = draw_flow(gray, flow)          # ou draw_hsv(flow)
+
+                # garante tipo e tamanho corretos
+                if vis.shape[1] != w or vis.shape[0] != h:
+                    vis = cv2.resize(vis, (w, h))
+
+                out.write(vis)
+
+            video.release()
+            out.release()
+            return tpm_path
+
