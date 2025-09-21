@@ -152,7 +152,8 @@ def render_result_page_video():
             st.info("👆 Faça upload de ambos os vídeos para iniciar a análise")
         else:
             st.info("👆 Faça upload de um vídeo para iniciar a análise")
-        st.image("img_princ.jpeg", use_container_width=True)
+        st.image("Error-Detection.png", use_container_width=True)
 
 if __name__ == "__main__":
+
     render_result_page_video()
