@@ -176,4 +176,5 @@ def render_result_page_video():
         st.image("Error-Detection.png", use_container_width=True)
 
 if __name__ == "__main__":
+
     render_result_page_video()
