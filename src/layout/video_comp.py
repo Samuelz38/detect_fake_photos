@@ -133,8 +133,21 @@ def render_result_page_video():
                         st.bar_chart(chart_data, x="Tipo", y="Valor")
                 
                     else:
-                        pass    
-                
+                        result_col1, result_col2 = st.columns(2)
+                        video_ori, score_ori = processed_vid_ori
+                        video_fake_bytes, score_fake  = process_vid_fake
+                        with result_col1:
+                            st.markdown('---')
+                            st.subheader('Video Original')
+                            st.video(video_ori)
+                            st.write(score_ori)                     
+                        
+                        with result_col2:
+                            st.markdown('---')
+                            st.subheader('Video Falso')
+                            st.video(video_fake_bytes)
+                            st.write(score_fake)
+                                     
                 else:
                     st.markdown("**Resultado da Análise**")
                     st.markdown(f'<div class="metric-box">{processed_vid_ori}</div>', unsafe_allow_html=True)
@@ -145,14 +158,22 @@ def render_result_page_video():
                         st.metric("Resultado", f"{processed_vid_ori:.4f}")
 
                     else:
-                        pass
+                        results_col1 = st.columns(1)
+                        vid_byts, score = processed_vid_ori
+                        with results_col1:
+                            st.markdown('---')
+                            st.subheader('Resultado Video Original')
+                            st.video(vid_byts)
+                            st.write(score)
+
+             
     
     else:
         if analysis_mode == "Comparação entre dois vídeos":
             st.info("👆 Faça upload de ambos os vídeos para iniciar a análise")
         else:
             st.info("👆 Faça upload de um vídeo para iniciar a análise")
-        st.image("img_princ.jpeg", use_container_width=True)
+        st.image("Error-Detection.png", use_container_width=True)
 
 if __name__ == "__main__":
     render_result_page_video()

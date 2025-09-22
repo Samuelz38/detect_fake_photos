@@ -3,7 +3,7 @@ import numpy as np
 import tempfile
 import matplotlib.pyplot as plt
 import time
-
+import os
 
 def draw_flow(img,flow,step=16):
 
@@ -109,6 +109,11 @@ def process_video(data,option,codec='mp4v'):
     video = cv2.VideoCapture(tfile.name)
     ret, frame = video.read()
 
+    if not ret:
+        video.release()
+        out.release()
+        raise RuntimeError("Vídeo vazio")
+
     match option:
         case 'Análise de Metadados':
             fps = video.get(cv2.CAP_PROP_FPS)
@@ -154,70 +159,98 @@ def process_video(data,option,codec='mp4v'):
             inconsistency = np.var(compression_artifacts)
             return inconsistency
 
-        case 'Análise de Padrões de Ruído':
-                noise_patterns = []
-    
-                for i in range(0, 100, 10):  
-                    if ret:
-                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                        
-                        
-                        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-                        noise = gray - blurred
-                        
-                
-                        noise_variance = np.var(noise)
-                        noise_patterns.append(noise_variance)
-                
-                video.release()
-                
-            
-                inconsistency = np.var(noise_patterns)
-                print(f"Inconsistência de ruído: {inconsistency:.6f}")
-                
-                return inconsistency
-    
-
         case 'Optical Analise':
+            # Parâmetros melhorados do Optical Flow
+            fb_params = {
+                'pyr_scale': 0.5,
+                'levels': 3,
+                'winsize': 15,
+                'iterations': 3,
+                'poly_n': 5,
+                'poly_sigma': 1.2,
+                'flags': 0
+            }
+            
             fps = video.get(cv2.CAP_PROP_FPS) or 25.0
             w = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-            
+            # Cria um arquivo temporário para o vídeo de saída
+            output_temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            output_path = output_temp_file.name
+            output_temp_file.close()
+
             fourcc = cv2.VideoWriter_fourcc(*codec)
-            out = cv2.VideoWriter(data, fourcc, fps, (w, h))
+            out = cv2.VideoWriter(output_path, fourcc, fps, (w, h))
 
+            # Processamento do fluxo óptico
+            flows = []
+            prev_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             
-            if not suc:
-                video.release()
-                out.release()
-                raise RuntimeError("Vídeo vazio")
-
-            prevgray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
+            # Escreve o primeiro frame processado
+            vis = draw_flow(prev_gray, np.zeros((prev_gray.shape[0], prev_gray.shape[1], 2), dtype=np.float32))
+            if vis.shape[1] != w or vis.shape[0] != h:
+                vis = cv2.resize(vis, (w, h))
+            out.write(vis)
+            
             while True:
-                suc, img = video.read()
-                if not suc:
+                ret, frame = video.read()
+                if not ret:
                     break
-
-                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-                # calcula fluxo Farneback (ajuste parâmetros se precisar)
-                flow = cv2.calcOpticalFlowFarneback(prevgray, gray, None,
-                                                    0.5, 3, 15, 3, 5, 1.2, 0)
-                prevgray = gray
-
-                # desenha resultado (por exemplo: draw_flow ou draw_hsv)
-                # aqui suponho que draw_flow/ draw_hsv retornam BGR com mesmo tamanho (w,h)
-                vis = draw_flow(gray, flow)          # ou draw_hsv(flow)
-
-                # garante tipo e tamanho corretos
+                    
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                
+                # Calcula optical flow
+                flow = cv2.calcOpticalFlowFarneback(
+                    prev_gray, gray, None,
+                    fb_params['pyr_scale'],
+                    fb_params['levels'],
+                    fb_params['winsize'],
+                    fb_params['iterations'],
+                    fb_params['poly_n'],
+                    fb_params['poly_sigma'],
+                    fb_params['flags']
+                )
+                
+                flows.append(flow)
+                prev_gray = gray
+                
+                # Gera visualização
+                vis = draw_flow(gray, flow)
+                
                 if vis.shape[1] != w or vis.shape[0] != h:
                     vis = cv2.resize(vis, (w, h))
-
+                
                 out.write(vis)
 
             video.release()
             out.release()
-            return tpm_path
+            
+            # Lê o vídeo processado como bytes para o Streamlit
+            with open(output_path, 'rb') as f:
+                video_bytes = f.read()
+            
+            # Limpa os arquivos temporários
+            os.unlink(output_path)
+            os.unlink(tpm_path)
+            
+            # Análise de inconsistências no fluxo óptico
+            if len(flows) > 1:
+                inconsistencies = []
+                for i in range(1, len(flows)):
+                    diff = flows[i] - flows[i-1]
+                    magnitude = np.sqrt(np.sum(diff**2, axis=2))
+                    inconsistencies.append(np.mean(magnitude))
+                
+                inconsistency_score = np.var(inconsistencies) if inconsistencies else 0
+            else:
+                inconsistency_score = 0
+                
+            print(f"Score de inconsistência do fluxo óptico: {inconsistency_score:.6f}")
+            
+            return video_bytes, inconsistency_score
+
+
+
+
 
