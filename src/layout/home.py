@@ -16,6 +16,11 @@ def render_home_page():
             if st.button("Prosseguir", key="btn_prosseguir"):
                 st.switch_page("pages/result.py")
 
+        with st.container(border=True):
+            st.subheader("📱 Verificar Screenshot")
+            st.write('Envie um print de celular para análise e verificação de alterações')
+            if st.button("Prosseguir",key='btn_screen'):
+                st.switch_page("pages/screen.py")
  
     with col2:
         with st.container(border=True):

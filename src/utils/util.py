@@ -252,5 +252,34 @@ def process_video(data,option,codec='mp4v'):
 
 
 
+def preprocessar_screeshot(imagem):
+    """
+    Pré-processamento leve para capturas de tela (screenshots):
+    - Redimensiona para padronizar entradas
+    - Suaviza artefatos de compressão com filtro bilateral
+    - Normaliza intensidades (0–255)
+    - Equaliza histograma de forma global (para contraste geral)
+    """
+    
+    # Converte para gray_scale
+    gray_scale = cv2.cvtColor(imagem,cv2.COLOR_BGR2GRAY)    
 
+    # Redimensiona (mantendo formato quadrado)
+    imagem = cv2.resize(gray_scale, (256, 256), interpolation=cv2.INTER_AREA)
+
+    # Filtro bilateral preserva bordas e suaviza compressão
+    imagem = cv2.bilateralFilter(imagem, d=5, sigmaColor=50, sigmaSpace=50)
+
+    # Normalização linear (ajuste de brilho/contraste geral)
+    imagem = cv2.normalize(imagem, None, 0, 255, cv2.NORM_MINMAX)
+
+    # Equalização de histograma (somente se contraste for baixo)
+    if np.std(imagem) < 40:  # Evita supercontraste em imagens já fortes
+        imagem = cv2.equalizeHist(imagem)
+
+
+
+    _, mascara = cv2.threshold(imagem, 150, 255, cv2.THRESH_OTSU)
+
+    return imagem, mascara 
 
